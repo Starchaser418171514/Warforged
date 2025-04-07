@@ -1,281 +1,234 @@
-#include <iostream>
-#include <conio.h>
-#include <ctime>
-#include <string>
-#include <vector>
-#include <map>
+#include "base.h"
+#include "display.h"
 
 using namespace std;
 
-int gridwidth = 50, gridheight = 40, imagewidth = 18, imageheight = 15;
-string spacing = " |                 |";
-string centre(100 - gridwidth - 10 - imagewidth, ' ');
-map<string, pair<size_t, size_t>> coords;
-vector<string> squares = {"🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜"};
-vector<vector<string>> image(imageheight, vector<string>(imagewidth));
-vector<vector<string>> grid(gridheight, vector<string>(gridwidth));
-// Enemies
-vector<string> monsters = {"👽", "😈", "🐍", "🦖", "🦀", "🦠"};
-
-bool isMonster(const int x, const int y, const vector<vector<string>> &vec) {
-    for(string monster : monsters) {
-        if (monster == vec[y][x]) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool isMonster(const pair<size_t, size_t> coords, const vector<vector<string>> &vec) {
-    const int x = coords.first, y = coords.second;
-    for(string monster : monsters) {
-        if (monster == vec[y][x]) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool isEntereable(const int x, const int y, const vector<vector<string>> &vec)
+// Function to attack a monster at a given coordinate
+bool attack(const Coordinate &coord, vector<vector<string>> &backgroundGrid, vector<vector<string>> &entityGrid)
 {
-    return x < gridwidth && x >= 0 && y < gridheight && y >= 0 && !isMonster(x, y, vec);
-}
-
-bool isEntereable(const pair<size_t, size_t> coords, const vector<vector<string>> &vec)
-{
-    int x = coords.first, y = coords.second;
-    return x < gridwidth && x >= 0 && y < gridheight && y >= 0 && !isMonster(x, y, vec);
-}
-
-// Sets a value in the grid to something else
-bool set_coords(pair<size_t, size_t> coords, const string unit, vector<vector<string>> &vec)
-{
-    if (isEntereable(coords.first, coords.second, vec))
+    if (isMonster(coord, entityGrid))
     {
-        vec[coords.second][coords.first] = unit; // Update the coordinate with the string
-        return true;
-    }
-    else
-    {
-        cout << unit << " (" << coords.first << ", " << coords.second << ") is invalid!" << "\n";
-        return false;
-    }
-}
-
-//begone
-bool attack(const pair<size_t, size_t> coords, vector<vector<string>> &vec) {
-    int x = coords.first, y = coords.second;
-    if(isMonster(x, y, vec)) {
-        vec[y][x] = "🟩";
+        entityGrid[coord.y][coord.x] = ATTACKED_TILE;
+        backgroundGrid[coord.y][coord.x] = ATTACKED_TILE;
         return true;
     }
     return false;
 }
 
-//begone
-bool attack(const int x, const int y, vector<vector<string>> &vec) {
-    if(isMonster(x, y, vec)) {
-        vec[y][x] = "🟩";
-        return true;
-    }
-    return false;
-}
-
-// I like to move it move it
-bool move(pair<size_t, size_t> &coords, vector<vector<string>> &vec, const int dir = 0)
+// Function to move the player
+MoveResult movePlayer(Coordinate &coord, vector<vector<string>> &backgroundGrid, vector<vector<string>> &entityGrid, Direction dir)
 {
-    size_t x = coords.first, y = coords.second;
+    Coordinate newPos = coord;
     switch (dir)
     {
-    case 0:
-        if (isEntereable(x, y - 1, vec))
-        {
-            vec[y - 1][x] = vec[y][x];
-            vec[y][x] = "🟩";
-            coords.second -= 1;
-            return true;
-        } else if (attack(x, y-1, vec))
-        {
-            cout << "Splat!\n";
-        }
+    case Direction::Up:
+        newPos.y -= 1;
         break;
-    case 1:
-        if (isEntereable(x + 1, y, vec))
-        {
-            vec[y][x + 1] = vec[y][x];
-            vec[y][x] = "🟩";
-            coords.first += 1;
-            return true;
-        } else if (attack(x+1, y, vec))
-        {
-            cout << "Splat!\n";
-        }
+    case Direction::Right:
+        newPos.x += 1;
         break;
-    case 2:
-        if (isEntereable(x, y + 1, vec))
-        {
-            vec[y + 1][x] = vec[y][x];
-            vec[y][x] = "🟩";
-            coords.second += 1;
-            return true;
-        } else if (attack(x, y-1, vec))
-        {
-            cout << "Splat!\n";
-        }
+    case Direction::Down:
+        newPos.y += 1;
         break;
-    case 3:
-        if (isEntereable(x - 1, y, vec))
-        {
-            vec[y][x - 1] = vec[y][x];
-            vec[y][x] = "🟩";
-            coords.first -= 1;
-            return true;
-        } else if (attack(x-1, y, vec))
-        {
-            cout << "Splat!\n";
-        }
+    case Direction::Left:
+        newPos.x -= 1;
         break;
     }
-    return false;
+
+    if (!isEnterable(newPos, entityGrid))
+    {
+        if (attack(newPos, backgroundGrid, entityGrid))
+        {
+            return MoveResult::Attack;
+        }
+
+        return MoveResult::Invalid;
+    }
+
+    // Move the player
+    entityGrid[newPos.y][newPos.x] = PLAYER_CHAR;
+    entityGrid[coord.y][coord.x] = EMPTY_TILE;
+    coord = newPos;
+    return MoveResult::Success;
 }
 
-int main()
+// Function to split enoji strings into a vector of each character
+vector<vector<string>> splitEmojis(const string &input)
 {
-    srand(time(0));
-    string hr(200, '=');
-    char ch;
+    vector<vector<string>> image;
+    vector<string> currentRow;
+    vector<string> emojis;
 
-    for (int i = 0; i < gridheight; i++)
+    // Convert UTF-8 to a vector of emojis
+    size_t i = 0;
+    while (i < input.size())
     {
-        for (int j = 0; j < gridwidth; j++)
+        char32_t codepoint = 0;
+        size_t bytes = 1;
+        unsigned char c = input[i];
+
+        if (c == '\n')
+        { // Ignore newlines
+            i++;
+            continue;
+        }
+
+        if ((c & 0x80) == 0)
         {
-            grid[i][j] = "🟩";
+            codepoint = c;
+        }
+        else if ((c & 0xE0) == 0xC0)
+        {
+            codepoint = ((c & 0x1F) << 6) | (input[i + 1] & 0x3F);
+            bytes = 2;
+        }
+        else if ((c & 0xF0) == 0xE0)
+        {
+            codepoint = ((c & 0x0F) << 12) | ((input[i + 1] & 0x3F) << 6) | (input[i + 2] & 0x3F);
+            bytes = 3;
+        }
+        else if ((c & 0xF8) == 0xF0)
+        {
+            codepoint = ((c & 0x07) << 18) | ((input[i + 1] & 0x3F) << 12) | ((input[i + 2] & 0x3F) << 6) | (input[i + 3] & 0x3F);
+            bytes = 4;
+        }
+
+        string utf8Emoji(input.substr(i, bytes)); // Extract emoji
+        i += bytes;
+
+        currentRow.push_back(utf8Emoji);
+
+        if (currentRow.size() == IMAGE_WIDTH)
+        { // If row is full, add it to grid
+            image.push_back(currentRow);
+            currentRow.clear();
         }
     }
 
-// Player
-setchar:
-    coords["char"] = {rand() % gridwidth, rand() % gridheight};
-    if (!set_coords(coords["char"], "💙", grid))
+    // Add last row if it's not empty
+    if (!currentRow.empty())
     {
-        goto setchar;
+        image.push_back(currentRow);
     }
 
-    //Monsters
-    for (int i = 0; i < 10; i++)
-    {
-    setmon:
-        coords["mon" + string(1, i)] = {rand() % gridwidth, rand() % gridheight};
-        if (!set_coords(coords["mon" + string(1, i)], monsters[rand() % monsters.size()], grid))
-        {
-            goto setmon;
-        }
-    }
+    return image;
+}
 
-    // gameplay loop
-    bool running = true;
-    while (running)
+// Function to render grid and image
+void render(const vector<vector<string>> &backgroundGrid, const vector<vector<string>> &entityGrid, const vector<vector<string>> &image)
+{
+    stringstream output; // the output buffer
+    int maxHeight = max(GRID_HEIGHT, IMAGE_HEIGHT);
+    for (int i = 0; i < maxHeight; ++i)
     {
-        // regenerating the image
-        for (int i = 0; i < imageheight; i++)
+        // if still hasn't finsihed printing the grid
+        if (i < GRID_HEIGHT)
         {
-            for (int j = 0; j < imagewidth; j++)
+            for (int j = 0; j < GRID_WIDTH; ++j)
             {
-                image[i][j] = squares[rand() % squares.size()];
-            }
-        }
-
-        // looping through the grid
-        int maxheight = max(gridheight, imageheight);
-        for (int i = 0; i < maxheight; i++)
-        {
-            if (i <= gridheight)
-            {
-                for (int j = 0; j < gridwidth; j++)
+                if (entityGrid[i][j].empty() || entityGrid[i][j] == EMPTY_TILE)
                 {
-                    cout << grid[i][j];
+                    output << backgroundGrid[i][j];
+                }
+                else
+                {
+                    output << entityGrid[i][j];
                 }
             }
-            else
+        }
+        else
+        {
+            // spacing
+            output << string(GRID_WIDTH, ' ');
+        }
+        output << SPACING << CENTRE;
+        // if still hasn't finished printing the image
+        if (i < IMAGE_HEIGHT)
+        {
+            for (const auto &cell : image[i])
+                output << cell;
+        }
+        output << "\n";
+    }
+
+    cout << output.str();
+}
+
+// Centers ASCII strings to desired width
+void padASCII(string &image)
+{
+    // Split the input string into lines
+    stringstream ss(image);
+    string line;
+    vector<string> lines;
+
+    while (getline(ss, line, '\n'))
+    {
+        lines.push_back(line);
+    }
+
+    // Clear the original string (we'll overwrite it)
+    image.clear();
+
+    // Process each line and add padding
+    for (size_t i = 0; i < lines.size(); ++i)
+    {
+        int padding = (IMAGE_WIDTH * 2 - lines[i].length()); // Spaces on each side
+        if (padding < 0)
+            padding = 0; // Ensure no negative padding
+
+        // Append the padded line to the image string
+        image += lines[i] + string(padding, ' ');
+    }
+}
+
+// ASCII version
+void render(const vector<vector<string>> &backgroundGrid, const vector<vector<string>> &entityGrid, const string &image)
+{
+    stringstream output; // the output buffer
+    int maxHeight = max(GRID_HEIGHT, IMAGE_HEIGHT);
+    for (int i = 0; i < maxHeight; ++i)
+    {
+        // if still hasn't finsihed printing the grid
+        if (i < GRID_HEIGHT)
+        {
+            for (int j = 0; j < GRID_WIDTH; ++j)
             {
-                for (int j = 0; j < gridwidth; j++)
+                if (entityGrid[i][j].empty() || entityGrid[i][j] == EMPTY_TILE)
                 {
-                    cout << ' ';
+                    output << backgroundGrid[i][j];
+                }
+                else
+                {
+                    output << entityGrid[i][j];
                 }
             }
-            cout << spacing << centre;
-            // making sure the index doesn't go out of range
-
-            for (int j = 0; j < imagewidth && i < imageheight; j++)
-            {
-                cout << image[i][j];
-            }
-
-            cout << "\n";
         }
-
-        cout << hr << "\n";
-    enter:
-        ch = _getch();
-        switch (ch)
+        else
         {
-        case 'w':
-            if (!move(coords["char"], grid, 0))
-            {
-                cout << "Invalid!\n";
-                goto enter;
-            }
-            break;
-        case 'a':
-            if (!move(coords["char"], grid, 3))
-            {
-                cout << "Invalid!\n";
-                goto enter;
-            }
-            break;
-        case 's':
-            if (!move(coords["char"], grid, 2))
-            {
-                cout << "Invalid!\n";
-                goto enter;
-            }
-            break;
-        case 'd':
-            if (!move(coords["char"], grid, 1))
-            {
-                cout << "Invalid!\n";
-                goto enter;
-            }
-            break;
-        case 27:
-            cout << "Do you really want to exit? All your progress will be lost! (y/n)\n";
-            ch = _getch();
-            if (ch == 'y' || ch == 27)
-            {
-                running = false;
-            }
-            break;
-        default:
-            cout << "Accidental button press? FYI, that isn't a valid option. Do you want to see the controls? (y/n)\n";
-            ch = _getch();
-            if (ch == 'y')
-            {
-                cout << R"(                Controls:
-                w = Up
-                a = left
-                s = down
-                d = right
-                escape = exit)"
-                     << "\n";
-            }
-            else
-            {
-                cout << "Alright then.\n";
-            }
-            goto enter;
+            // spacing
+            output << string(GRID_WIDTH, ' ');
         }
-        cout << ch << "\n";
-        cout << hr << "\n";
+        output << SPACING << CENTRE;
+        // if still hasn't finished printing the image
+        if (i < IMAGE_HEIGHT)
+        {
+            for (int j = 0; j < IMAGE_WIDTH * 2; ++j)
+            {
+                if (IMAGE_WIDTH * 2 * i + j <= image.length())
+                {
+                    output << image[IMAGE_WIDTH * 2 * i + j];
+                }
+            }
+        }
+        output << "\n";
     }
-    return 0;
+
+    cout << output.str();
+}
+
+// Function to find if a string starts with certain characters (no idea why starts_with doesn't work)
+bool startswith(const string &str, const string &key)
+{
+    return str.size() >= key.size() && str.compare(0, key.size(), key) == 0;
 }
