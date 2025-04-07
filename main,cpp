@@ -1,0 +1,270 @@
+#include "base.h"
+#include "display.h"
+
+int main()
+{
+    srand(static_cast<unsigned int>(time(0)));
+
+    // Initialize grid
+    vector<vector<string>> entityGrid(GRID_HEIGHT, vector<string>(GRID_WIDTH));
+    vector<vector<string>> backgroundGrid(GRID_HEIGHT, vector<string>(GRID_WIDTH, EMPTY_TILE));
+
+    unordered_map<string, Coordinate> entityMap;
+
+    // Walls
+    Coordinate currentWall;
+    Coordinate nextWall;
+
+    // Place the initial wall
+    do
+    {
+        currentWall.x = rand() % GRID_WIDTH;
+        currentWall.y = rand() % GRID_HEIGHT;
+    } while (!setCoordinate(currentWall, WALL, entityGrid));
+
+    for (size_t i = 0; i < 50; ++i)
+    {
+        // Try to find an adjacent coordinate
+        nextWall = getAdjacentCoordinate(currentWall, entityGrid);
+
+        if (isEnterable(nextWall, entityGrid))
+        {
+            currentWall = nextWall;
+            setCoordinate(currentWall, WALL, entityGrid);
+        }
+        else
+        {
+            // No valid adjacent position, choose a random location
+            do
+            {
+                currentWall.x = rand() % GRID_WIDTH;
+                currentWall.y = rand() % GRID_HEIGHT;
+            } while (!setCoordinate(currentWall, WALL, entityGrid));
+        }
+    }
+
+    // Initialize player coordinate
+    Coordinate player;
+    do
+    {
+        player.x = rand() % GRID_WIDTH;
+        player.y = rand() % GRID_HEIGHT;
+    } while (!setCoordinate(player, PLAYER_CHAR, entityGrid));
+    entityMap["Player"] = player;
+
+    // Initialize monsters
+    for (int i = 0; i < 10; ++i)
+    {
+        Coordinate monster;
+        string key = "mon" + to_string(i);
+        do
+        {
+            monster.x = rand() % GRID_WIDTH;
+            monster.y = rand() % GRID_HEIGHT;
+        } while (!setCoordinate(monster, MONSTERS[rand() % MONSTERS.size()], entityGrid));
+        entityMap[key] = monster;
+    }
+
+    // Image declaration for emojis
+    unordered_map<string, vector<vector<string>>> emojiimages;
+
+    vector<vector<string>> noise(IMAGE_HEIGHT, vector<string>(IMAGE_WIDTH, " "));
+
+    // Generate the noise image
+    for (auto &row : noise)
+    {
+        for (auto &cell : row)
+        {
+            cell = SQUARES[rand() % SQUARES.size()];
+        }
+    }
+
+    {
+        emojiimages["noise"] = noise;
+
+        emojiimages["line"] = splitEmojis(R"(🟥🟩🟩🟪🟥🟨⬜🟩⬛🟩🟦)");
+    }
+
+    // Image declaration (I'm not confident enough to mess with files)
+    unordered_map<string, string> ASCIIimages;
+    {
+        ASCIIimages["noise"] = "";
+        // THE DOCTOR IS GENERATING
+        for (int i = 0; i < IMAGE_HEIGHT; ++i)
+        {
+            for (int j = 0; j < IMAGE_WIDTH * 2; ++j)
+            {
+                ASCIIimages["noise"] += characters[rand() % characters.size()];
+            }
+        }
+
+        ASCIIimages["house"] = R"(         /\          
+        /  \         
+       /____\        
+      |      |       
+      |  []  |       
+      |  []  |       
+      |______|       
+     /________\      
+    |          |     
+    |  []  []  |     
+    |  []  []  |     
+    |__________|     
+   /____________\    
+  /              \   
+ /________________\   
+)";
+    }
+
+    for (auto &image : ASCIIimages)
+    {
+        padASCII(image.second);
+    }
+
+    // Game loop
+    bool running = true, validInput = true, hasMonsters = true;
+    int ch;
+    Mode mode;
+
+    while (running)
+    {
+        if (validInput)
+        {
+            cout << "\033[2J";
+
+            mode = Mode::ASCII; //(rand() % 2 == 0) ? Mode::Emoji : Mode::ASCII;
+
+            if (mode == Mode::Emoji)
+            {
+
+                // Render grid and image
+                render(backgroundGrid, entityGrid, emojiimages["line"]);
+            }
+            else if (mode == Mode::ASCII)
+            {
+                // Render grid and image
+                render(backgroundGrid, entityGrid, ASCIIimages["house"]);
+            }
+        }
+
+        this_thread::sleep_for(chrono::milliseconds(150));
+
+        // Handle input
+        bool keyPressed = false;
+
+        for (int key = 0x08; key <= 0xFF; ++key)
+        {
+            if (GetAsyncKeyState(key) & 0x8000)
+            { // If a key is held down
+                keyPressed = true;
+                ch = key;
+                break;
+            }
+        }
+        if (!keyPressed)
+        {
+            ch = waitForInput();
+        }
+        Direction dir;
+
+        switch (ch)
+        {
+        case 'W':
+        case VK_UP:
+            dir = Direction::Up;
+            break;
+        case 'A':
+        case VK_LEFT:
+            dir = Direction::Left;
+            break;
+        case 'S':
+        case VK_DOWN:
+            dir = Direction::Down;
+            break;
+        case 'D':
+        case VK_RIGHT:
+            dir = Direction::Right;
+            break;
+        case VK_ESCAPE: // ESC key
+            cout << "Do you really want to exit? All your progress will be lost! (y/n)\n";
+            this_thread::sleep_for(chrono::milliseconds(400));
+            ch = waitForInput();
+            if (ch == 'Y' || ch == VK_ESCAPE)
+            {
+                running = false;
+                goto exit;
+            }
+            cout << "Alright then.";
+            validInput = false;
+            continue;
+        default:
+            cout << "Accidental button press? FYI, that isn't a valid option. Do you want to see the controls? (y/n)\n";
+            this_thread::sleep_for(chrono::milliseconds(400));
+            ch = waitForInput();
+            if (ch == 'Y')
+            {
+                cout << R"(Controls:
+    w/⬆️  = Up
+    a/⬅️  = Left
+    s/⬇️  = Down
+    d/➡️  = Right
+    escape = Exit)" << "\n";
+            }
+            else
+            {
+                cout << "Alright then.\n";
+            }
+            validInput = false;
+            continue;
+        }
+
+        MoveResult result = movePlayer(player, backgroundGrid, entityGrid, dir);
+        switch (result)
+        {
+        case MoveResult::Success:
+            break;
+        case MoveResult::Attack:
+            cout << "Splat!\n";
+
+            // Are there any monsters remaining?
+            hasMonsters = true;
+            for (const auto &entity : entityMap)
+            {
+                if (startswith(entity.first, "mon"))
+                {
+                    if (isMonster(entity.second, entityGrid))
+                    {
+                        hasMonsters = true;
+                        break;
+                    }
+                    else
+                    {
+                        hasMonsters = false;
+                    }
+                }
+            }
+
+            if (!hasMonsters)
+            {
+                cout << "Clear!\n";
+                goto exit;
+            }
+            break;
+
+        case MoveResult::Invalid:
+            if (validInput)
+            {
+                cout << "Invalid move!\n";
+                validInput = false;
+            }
+            continue;
+        }
+
+        validInput = true;
+    }
+
+exit:
+    cout << "Exiting." << flush;
+    return 0;
+    exit(0);
+}
