@@ -1,0 +1,232 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+// Helper structures and constants
+struct Coordinate {
+    int x, y;
+};
+const int MAX_POINTS = 10;
+
+bool isValid(Coordinate pos, const vector<vector<string>>& grid) {
+    return pos.x >= 0 && pos.y >= 0 && pos.x < grid.size() && pos.y < grid[0].size();
+}
+
+bool isMonster(Coordinate pos, const vector<vector<string>>& grid) {
+    return grid[pos.x][pos.y].find("M") != string::npos;
+}
+
+// Base Character class
+class Character {
+protected:
+    int points;
+    int turnsSinceLastUltimate;
+    int ultimateTurnRequirement;
+    Coordinate position;
+    string characterType;
+    int attackStat;
+    bool ultimateReady;
+    bool shieldActive;
+    int shieldDuration;
+    float shieldReduction;
+    
+public:
+    Character(Coordinate pos, int att, int ultReq) : 
+        position(pos), attackStat(att), ultimateTurnRequirement(ultReq),
+        points(0), turnsSinceLastUltimate(0), ultimateReady(false),
+        shieldActive(false), shieldDuration(0), shieldReduction(0.0f) {}
+    
+    virtual ~Character() {}
+    
+    void beginTurn() {
+        points = min(points + 1, MAX_POINTS);
+        turnsSinceLastUltimate++;
+        if (turnsSinceLastUltimate >= ultimateTurnRequirement) {
+            ultimateReady = true;
+        }
+    }
+    
+    virtual bool basicAttack(Coordinate target, vector<vector<string>>& grid) {
+        if (!isValid(target, grid)) return false;
+        
+        int damage = attackStat;
+        cout << characterType << " basic attack on (" << target.x << ", " << target.y 
+             << ") for " << damage << " damage!\n";
+        return true;
+    }
+    
+    virtual bool useSkill(vector<vector<string>>& grid) = 0;
+    virtual bool useUltimate(vector<vector<string>>& grid) = 0;
+    
+    void applyDamageReductionShield(int duration, float reduction) {
+        shieldActive = true;
+        shieldDuration = duration;
+        shieldReduction = reduction;
+    }
+    
+    int applyDamageReduction(int incomingDamage) {
+        return shieldActive ? static_cast<int>(incomingDamage * (1.0f - shieldReduction)) : incomingDamage;
+    }
+    
+    void endTurn() {
+        if (shieldActive && --shieldDuration <= 0) {
+            shieldActive = false;
+            cout << characterType << "'s shield expired.\n";
+        }
+    }
+    
+    Coordinate getPosition() const { return position; }
+    string getType() const { return characterType; }
+    bool isUltimateReady() const { return ultimateReady; }
+    bool hasShield() const { return shieldActive; }
+};
+
+// Tank class
+class Tank : public Character {
+private:
+    bool counterActive;
+    int counterRange;
+    
+public:
+    Tank(Coordinate pos, int att) : Character(pos, att, 5),
+        counterActive(false), counterRange(2) {
+        characterType = "Tank";
+    }
+    
+    bool useSkill(vector<vector<string>>& grid) override {
+        if (points < 2) return false;
+        counterActive = true;
+        points -= 2;
+        cout << "Tank: Counter stance activated!\n";
+        return true;
+    }
+
+    bool useUltimateOn(Character& target, vector<vector<string>>& grid) {
+        if (!ultimateReady) return false;
+        target.applyDamageReductionShield(3, 0.5f);
+        ultimateReady = false;
+        turnsSinceLastUltimate = 0;
+        cout << "Tank shielded " << target.getType() << " (50% reduction for 3 turns)!\n";
+        return true;
+    }
+    
+    bool useUltimate(vector<vector<string>>& grid) override {
+        return useUltimateOn(*this, grid);
+    }
+    
+    void allyGotHit(Coordinate allyPos, Coordinate enemyPos, vector<vector<string>>& grid) {
+        if (counterActive && (abs(allyPos.x - position.x) + abs(allyPos.y - position.y)) <= counterRange) {
+            cout << "Tank counters (" << enemyPos.x << "," << enemyPos.y << ")!\n";
+            basicAttack(enemyPos, grid);
+        }
+    }
+};
+
+// Fighter class
+class Fighter : public Character {
+private:
+    int attackBuffTurns;
+    float attackBuffMultiplier;
+    
+public:
+    Fighter(Coordinate pos, int att) : Character(pos, att, 4),
+        attackBuffTurns(0), attackBuffMultiplier(1.5f) {
+        characterType = "Fighter";
+    }
+    
+    bool useSkill(vector<vector<string>>& grid) override {
+        if (points < 2) return false;
+        attackBuffTurns = 3;
+        points -= 2;
+        cout << "Fighter: Attack Boost active for 3 turns!\n";
+        return true;
+    }
+    
+    bool useUltimate(vector<vector<string>>& grid) override {
+        if (!ultimateReady) return false;
+        ultimateReady = false;
+        turnsSinceLastUltimate = 0;
+        cout << "Fighter uses Fatal Blow!\n";
+        return true;
+    }
+    
+    int getAttackStat() const {
+        return attackBuffTurns > 0 ? static_cast<int>(attackStat * attackBuffMultiplier) : attackStat;
+    }
+    
+    void endTurn() {
+        Character::endTurn();
+        if (attackBuffTurns > 0) attackBuffTurns--;
+    }
+};
+
+// Marksman class (with targeting)
+class Marksman : public Character {
+private:
+    int aoeRange;
+    int ultimateRange;
+    
+public:
+    Marksman(Coordinate pos, int att) : Character(pos, att, 6),
+        aoeRange(2), ultimateRange(5) {
+        characterType = "Marksman";
+    }
+    
+    bool basicAttack(Coordinate target, vector<vector<string>>& grid) override {
+        if (!isValid(target, grid)) return false;
+        
+        int distance = abs(target.x - position.x) + abs(target.y - position.y);
+        if (distance > 3) {
+            cout << "Target out of range (max 3 tiles)!\n";
+            return false;
+        }
+
+        cout << "Marksman shoots (" << target.x << "," << target.y << ") for "
+             << attackStat << " damage!\n";
+        return true;
+    }
+    
+    bool useSkill(Coordinate center, vector<vector<string>>& grid) {
+        if (points < 2 || !isValid(center, grid)) return false;
+        
+        int distance = abs(center.x - position.x) + abs(center.y - position.y);
+        if (distance > 2) {
+            cout << "AOE center out of range (max 2 tiles)!\n";
+            return false;
+        }
+
+        points -= 2;
+        cout << "Marksman AOE centered at (" << center.x << "," << center.y << "):\n";
+        
+        bool hitAny = false;
+        for (int dx = -aoeRange; dx <= aoeRange; dx++) {
+            for (int dy = -aoeRange; dy <= aoeRange; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                
+                Coordinate target = {center.x + dx, center.y + dy};
+                if (isValid(target, grid) && isMonster(target, grid)) {
+                    cout << "  Hit (" << target.x << "," << target.y << ")\n";
+                    hitAny = true;
+                }
+            }
+        }
+        return hitAny;
+    }
+    
+    bool useUltimate(Coordinate target, vector<vector<string>>& grid) override {
+        if (!ultimateReady || !isValid(target, grid)) return false;
+        
+        int distance = abs(target.x - position.x) + abs(target.y - position.y);
+        if (distance > ultimateRange) {
+            cout << "Target out of ultimate range (max 5 tiles)!\n";
+            return false;
+        }
+
+        ultimateReady = false;
+        turnsSinceLastUltimate = 0;
+        cout << "Marksman KNOCKBACK SHOT on (" << target.x << "," << target.y << ")!\n";
+        return true;
+    }
+};
