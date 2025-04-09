@@ -26,6 +26,12 @@ const string characters = ".-| :\\/";
 const vector<string> MONSTERS = {"👽", "😈", "🐍", "🦖", "🦀", "🦠"};
 const string EMPTY_TILE = "🟩", PLAYER_CHAR = "💙", ATTACKED_TILE = "💀", WALL = "🧱";
 
+//Enum for testing modes
+enum class testing {
+    Gameplay,
+    Dialogue
+};
+
 // Enum for movement directions
 enum class Direction
 {
