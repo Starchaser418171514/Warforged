@@ -1,10 +1,27 @@
 #include "base.h"
 #include "display.h"
+#include "charactermoveset.h"
+#include "renamethenight.h"
 
 int main()
 {
     srand(static_cast<unsigned int>(time(0)));
 
+    testing tester;
+    cout << "Testing modules:\n1. Main map\n2. Dialogue Triggers";
+    switch(waitForInput()) {
+        case '1':
+            tester = testing::Gameplay;
+            break;
+        case '2':
+            tester = testing::Dialogue;
+            break;
+        default:
+            tester = testing::Gameplay;
+            break;
+    }
+
+    if (tester == testing::Gameplay) {
     // Initialize grid
     vector<vector<string>> entityGrid(GRID_HEIGHT, vector<string>(GRID_WIDTH));
     vector<vector<string>> backgroundGrid(GRID_HEIGHT, vector<string>(GRID_WIDTH, EMPTY_TILE));
@@ -262,6 +279,11 @@ int main()
 
         validInput = true;
     }
+} else if (tester == testing::Dialogue)
+{
+    storyFunction();
+}
+
 
 exit:
     cout << "Exiting." << flush;
