@@ -34,6 +34,8 @@
                 "Game_Project\\main.cpp",
                 "Game_Project\\display.cpp",
                 "Game_Project\\base.cpp",
+                "Game_Project\\charactermoveset.cpp",
+                "Game_Project\\renamethenight.cpp",
                 "-o",
                 "Game_Project\\game.exe"
             ],
