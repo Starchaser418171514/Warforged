@@ -1,0 +1,146 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cstdlib> // For rand()
+#include <ctime>   // For time()
+
+// Enum for status effects
+enum class StatusEffect {
+    None,
+    Poisoned,
+    Frozen,
+    Burned
+};
+
+
+struct Loot {
+    std::string itemName;
+    int value;
+};
+
+class Enemy {
+private:
+    std::string name;
+    int health;
+    int maxHealth;
+    int attackPower;
+    int defense;
+    char symbol;
+    float speed;
+    bool isBoss;
+    StatusEffect status;
+    std::vector<Loot> lootTable;
+
+
+    Enemy(std::string name, int health, int attackPower, int defense, char symbol, float speed, bool isBoss)
+        : name(name), health(health), maxHealth(health), attackPower(attackPower), defense(defense),
+          symbol(symbol), speed(speed), isBoss(isBoss), status(StatusEffect::None) 
+    {
+        generateLoot();
+    }
+
+    
+    void takeDamage(int amount) {
+        int damageTaken = amount - defense;
+        if (damageTaken < 0) damageTaken = 0;
+
+        health -= damageTaken;
+        if (health < 0) health = 0;
+
+        std::cout << name << " took " << damageTaken << " damage! (Health: " << health << "/" << maxHealth << ")\n";
+    }
+
+     int attack() {
+        int critChance = rand() % 100;
+        int finalAttack = attackPower;
+
+        if (critChance < 20) { // 20% chance critical hit
+            finalAttack *= 2;
+            std::cout << name << " lands a Critical Hit!\n";
+        }
+        
+        std::cout << name << " attacks for " << finalAttack << " damage!\n";
+        return finalAttack;
+    }
+
+    // Defend 
+    void defend() {
+        int boost = 5 + (rand() % 5);
+        defense += boost;
+        std::cout << name << " defends and increases defense by " << boost << " for this turn!\n";
+    }
+
+    // Randomly choose between attack or defend
+    void takeAction() {
+        int action = rand() % 100;
+        if (action < 70) { // 70% attack, 30% defend
+            attack();
+        } else {
+            defend();
+        }
+    }
+
+    // Apply status effect
+    void applyStatus(StatusEffect newStatus) {
+        status = newStatus;
+        std::string statusName;
+
+        switch (newStatus) {
+            case StatusEffect::Poisoned: statusName = "Poisoned"; break;
+            case StatusEffect::Frozen:   statusName = "Frozen"; break;
+            case StatusEffect::Burned:   statusName = "Burned"; break;
+            default: statusName = "None"; break;
+        }
+
+        std::cout << name << " is now " << statusName << "!\n";
+    }
+  
+    void updateStatus() {
+        if (status == StatusEffect::Poisoned) {
+            int poisonDamage = 5;
+            health -= poisonDamage;
+            if (health < 0) health = 0;
+            std::cout << name << " suffers " << poisonDamage << " poison damage! (Health: " << health << ")\n";
+        }
+        if (status == StatusEffect::Burned) {
+            int burnDamage = 7;
+            health -= burnDamage;
+            if (health < 0) health = 0;
+            std::cout << name << " suffers " << burnDamage << " burn damage! (Health: " << health << ")\n";
+        }
+        // Frozen could reduce speed or skip a turn in advanced designs
+    }
+
+    bool isAlive() const {
+        return health > 0;
+    }
+
+    // Display enemy information
+    void displayInfo() const {
+        std::cout << "=== Enemy Info ===\n";
+        std::cout << "Name: " << name << "\nSymbol: " << symbol << "\nHealth: " << health << "/" << maxHealth;
+        std::cout << "\nAttack: " << attackPower << "\nDefense: " << defense << "\nSpeed: " << speed;
+        std::cout << "\nBoss: " << (isBoss ? "Yes" : "No") << "\n";
+    }
+
+    // Drops loot when defeated
+    void dropLoot() const {
+        std::cout << name << " dropped:\n";
+        for (auto& item : lootTable) {
+            std::cout << "- " << item.itemName << " (Value: " << item.value << ")\n";
+        }
+    }
+
+private:
+    void generateLoot() {
+        int numberOfItems = 1 + (rand() % 3); // 1-3 items
+        std::vector<std::string> possibleItems = {"Gold Coin", "Health Potion", "Magic Scroll", "Rare Gem"};
+        
+        for (int i = 0; i < numberOfItems; ++i) {
+            std::string item = possibleItems[rand() % possibleItems.size()];
+            int value = 10 + (rand() % 90); // 10 to 99 value
+            lootTable.push_back(Loot{item, value});
+        }
+    }
+}
+
