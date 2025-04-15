@@ -11,10 +11,10 @@ This is in the style of a text adventure game, so you choose options using the n
 
 
 Files
-main.cpp             - Runs the main gameplay loop, and calls other modules to aid in running.
-renamethenight.cpp   - The story module, contains all of the decisions to be made. To be implemented at different gameplay junctures.
-display.cpp          - renders images
-charactermoveset.cpp - contains the character movesets and functionality, yet to be implemented
+main.cpp             - Runs the main gameplay loop, and calls other modules to aid in running. (By Jayden)
+renamethenight.cpp   - The story module, contains all of the decisions to be made. To be implemented at different gameplay junctures. (By Kai Xin)
+display.cpp          - renders images (By Jayden)
+charactermoveset.cpp - contains the character movesets and functionality, yet to be implemented (By Adrian)
 
-tasks.json           - Contains the script for compiling all the files together
-launch.json          - contains the script for launching the program
+tasks.json           - Contains the script for compiling all the files together (By Jayden)
+launch.json          - contains the script for launching the program (By Jayden)
