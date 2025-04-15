@@ -56,8 +56,7 @@ enum class Mode
 };
 
 struct Coordinate {
-    size_t x;
-    size_t y;
+    int x, y;
 };
 
 bool isValid(const Coordinate &coord);
@@ -75,3 +74,5 @@ Coordinate getAdjacentCoordinate(const Coordinate &coord, const vector<vector<st
 bool setCoordinate(const Coordinate &coord, const string &unit, vector<vector<string>> &grid);
 
 int waitForInput();
+
+int aritPro(int x, int d, int n);
