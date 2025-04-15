@@ -8,3 +8,13 @@ Use WASD or the arrow keys to move around. If you would move into an enemy's spa
 
 STORY
 This is in the style of a text adventure game, so you choose options using the numbers of each option presented. Press Enter to confirm selection.
+
+
+Files
+main.cpp             - Runs the main gameplay loop, and calls other modules to aid in running.
+renamethenight.cpp   - The story module, contains all of the decisions to be made. To be implemented at different gameplay junctures.
+display.cpp          - renders images
+charactermoveset.cpp - contains the character movesets and functionality, yet to be implemented
+
+tasks.json           - Contains the script for compiling all the files together
+launch.json          - contains the script for launching the program
